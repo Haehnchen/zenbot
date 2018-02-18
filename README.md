@@ -250,36 +250,39 @@ zenbot trade --help
 
   Options:
 
-    --conf <path>                   path to optional conf overrides file
-    --strategy <name>               strategy to use
-    --order_type <type>             order type to use (maker/taker)
-    --paper                         use paper trading mode (no real trades will take place)
-    --manual                        watch price and account balance, but do not perform trades automatically
-    --currency_capital <amount>     for paper trading, amount of start capital in currency
-    --asset_capital <amount>        for paper trading, amount of start capital in asset
-    --avg_slippage_pct <pct>        avg. amount of slippage to apply to paper trades
-    --buy_pct <pct>                 buy with this % of currency balance
-    --buy_max_amt <amt>             buy with up to this amount of currency balance
-    --sell_pct <pct>                sell with this % of asset balance
-    --markdown_buy_pct <pct>        % to mark down buy price (previously the --markup_pct property)
-    --markup_sell_pct <pct>         % to mark up sell price (previously the --markup_pct property)
-    --order_adjust_time <ms>        adjust bid/ask on this interval to keep orders competitive
-    --order_poll_time <ms>          poll order status on this interval
-    --sell_stop_pct <pct>           sell if price drops below this % of bought price
-    --buy_stop_pct <pct>            buy if price surges above this % of sold price
-    --profit_stop_enable_pct <pct>  enable trailing sell stop when reaching this % profit
-    --profit_stop_pct <pct>         maintain a trailing stop this % below the high-water mark of profit
-    --max_sell_loss_pct <pct>       avoid selling at a loss pct under this float
-    --max_buy_loss_pct <pct>        avoid buying at a loss pct over this float
-    --max_slippage_pct <pct>        avoid selling at a slippage pct above this float
-    --rsi_periods <periods>         number of periods to calculate RSI at
-    --poll_trades <ms>              poll new trades at this interval in ms
-    --currency_increment <amount>   Currency increment, if different than the asset increment; e.g. 0.000001
-    --use_prev_trades               load and use previous trades for stop-order triggers and loss protection
-    --disable_stats                 disable printing order stats
-    --reset_profit                  start new profit calculation from 0
-    --debug                         output detailed debug info
-    -h, --help                      output usage information
+    --conf <path>                     path to optional conf overrides file
+    --strategy <name>                 strategy to use (default: trend_ema)
+    --order_type <type>               order type to use (maker/taker) (default: maker)
+    --paper                           use paper trading mode (no real trades will take place)
+    --manual                          watch price and account balance, but do not perform trades automatically
+    --non_interactive                 disable keyboard inputs to the bot
+    --currency_capital <amount>       for paper trading, amount of start capital in currency (default: 1000)
+    --asset_capital <amount>          for paper trading, amount of start capital in asset (default: 0)
+    --avg_slippage_pct <pct>          avg. amount of slippage to apply to paper trades (default: 0.045)
+    --buy_pct <pct>                   buy with this % of currency balance (default: 99)
+    --buy_max_amt <amt>               buy with up to this amount of currency balance
+    --sell_pct <pct>                  sell with this % of asset balance (default: 99)
+    --markdown_buy_pct <pct>          % to mark down buy price (default: 0)
+    --markup_sell_pct <pct>           % to mark up sell price (default: 0)
+    --order_adjust_time <ms>          adjust bid/ask on this interval to keep orders competitive (default: 5000)
+    --order_poll_time <ms>            poll order status on this interval (default: 5000)
+    --sell_stop_pct <pct>             sell if price drops below this % of bought price (default: 0)
+    --buy_stop_pct <pct>              buy if price surges above this % of sold price (default: 0)
+    --profit_stop_enable_pct <pct>    enable trailing sell stop when reaching this % profit (default: 0)
+    --profit_stop_pct <pct>           maintain a trailing stop this % below the high-water mark of profit (default: 1)
+    --max_sell_loss_pct <pct>         avoid selling at a loss pct under this float (default: 25)
+    --max_buy_loss_pct <pct>          avoid buying at a loss pct over this float (default: 25)
+    --max_slippage_pct <pct>          avoid selling at a slippage pct above this float (default: 5)
+    --rsi_periods <periods>           number of periods to calculate RSI at (default: 14)
+    --poll_trades <ms>                poll new trades at this interval in ms (default: 30000)
+    --currency_increment <amount>     Currency increment, if different than the asset increment (default: null)
+    --keep_lookback_periods <amount>  Keep this many lookback periods max.  (default: 50000)
+    --use_prev_trades                 load and use previous trades for stop-order triggers and loss protection
+    --disable_stats                   disable printing order stats
+    --reset_profit                    start new profit calculation from 0
+    --run_for <minutes>               Execute for a period of minutes then exit with status 0 (default: null)
+    --debug                           output detailed debug info
+    -h, --help                        output usage information
 ```
 
 and also:
