@@ -28,6 +28,8 @@ module.exports = {
     this.option('bollinger_breakout_trend_ema', 'breakout trigger: ema line our band line cross from bottom', Number, 12)
     this.option('bollinger_breakout_dips', 'breakout trigger: dips in row after when allow breakout', Number, 10)
     this.option('bollinger_breakout_size_violation', 'breakout trigger: bollinger band size violation in percent based on last periods to trigger breakout', Number, 80)
+
+    this.option('bollinger_sell_trigger', 'Trigger sell indicator: "auto", "cross", "touch"', String, 'touch')
   },
 
   calculate: function () {
@@ -76,8 +78,6 @@ module.exports = {
 
             s.upper = 0
             s.lower = 0
-
-            s.hma_buy = trendHma
           } else if(s.trend == 'buy' && shouldSell(s)) {
             s.trend = 'sell'
             s.signal = 'sell'
@@ -156,6 +156,9 @@ function getBandSizeInPercent(bollinger) {
   return (bollinger.upper - bollinger.lower) / bollinger.upper * 100
 }
 
+/**
+ * Get the average band size on history; to check if current band size is in violation
+ */
 function getAverageBandSize(myLookback) {
   let bandSizes = myLookback.slice(5, 200).filter(function (lookback, index) {
     return typeof lookback.bollinger !== 'undefined' && index % 5 === 0
@@ -224,10 +227,28 @@ function shouldSell(s) {
   let trendHma = s.period.trend_hma
   let trendHmaExit = s.period.trend_hma_exit
 
-  // upper band line
-  if(s.upper > 0 && trendHma < bollinger.upper) {
-    console.log('Sell based on upper bollinger lose')
-    return true
+  switch (s.options.bollinger_sell_trigger) {
+  case 'cross':
+    // middle crossed middle
+    if(trendHma < bollinger.upper && s.lookback[0].trend_hma > bollinger.upper) {
+      console.log('Sell based on upper croos from top')
+      return true
+    }
+
+    break
+  case 'touch':
+    // connection to upper band lost
+    if(s.upper > 0 && trendHma < bollinger.upper) {
+      console.log('Sell based on upper bollinger lose')
+      return true
+    }
+
+    break
+  case 'auto':
+    console.log('not supported yet'.red)
+    break
+  default:
+    console.log('not supported sell trigger'.red)
   }
 
   // middle crossed middle
