@@ -3,7 +3,7 @@
  *
  * Invest after a dip and  try to find a valid "line path" upside inside bollinger bands to get exit points
  *
- * @author Daniel Espendiller <daniel@espendiller.net
+ * @author Daniel Espendiller <daniel@espendiller.net>
  */
 var z = require('zero-fill')
   , n = require('numbro')
@@ -64,10 +64,8 @@ module.exports = {
         if (s.period.bollinger.upper && s.period.bollinger.lower) {
           let upperBound = s.period.bollinger.upper[s.period.bollinger.upper.length-1]
           let lowerBound = s.period.bollinger.lower[s.period.bollinger.lower.length-1]
-          let midBound = s.period.bollinger.mid[s.period.bollinger.mid.length-1]
 
           let trendHma = s.period.trend_hma
-          let trendHmaExit = s.period.trend_hma_exit
 
           if(s.lookback[0].trend_hma < lowerBound && trendHma > lowerBound) {
             // cross up lower band
@@ -80,32 +78,12 @@ module.exports = {
             s.lower = 0
 
             s.hma_buy = trendHma
-          } else if(s.upper > 0 && trendHma < upperBound) {
-            // upper band lost
-            if (s.trend != 'sell') {
-              s.trend = 'sell'
-              s.signal = 'sell'
-            }
-
-            s.upper = 0
-            s.lower = 0
-          } else if(s.trend == 'buy' && (s.lookback[0].trend_hma_exit > midBound && trendHmaExit < midBound)) {
-            // middle crossed middle
+          } else if(s.trend == 'buy' && shouldSell(s)) {
             s.trend = 'sell'
             s.signal = 'sell'
 
             s.upper = 0
             s.lower = 0
-          } else if(s.trend == 'buy' && s.lower > 0) {
-            // calculate lost based on hma
-            let loss = ((s.last_buy_price- trendHma) / s.hma_buy * 100)
-            let loss2 = ((s.last_buy_price - s.period.close) / s.hma_buy * 100)
-
-            if(((loss + loss2) / 2) > s.options.stop_lose) {
-              console.log((('Secure sell take lost of ' + n(loss).format('0.00')) + ' %').red)
-              s.trend = 'sell'
-              s.signal = 'sell'
-            }
           }
 
           if (s.trend == 'sell'
@@ -236,5 +214,38 @@ function extractLastBollingerResult(bollinger) {
   return {
     'upper': bollinger.upper[bollinger.upper.length - 1],
     'lower': bollinger.lower[bollinger.lower.length - 1],
+    'mid': bollinger.lower[bollinger.lower.length - 1],
   }
+}
+
+function shouldSell(s) {
+  let bollinger = extractLastBollingerResult(s.period.bollinger)
+
+  let trendHma = s.period.trend_hma
+  let trendHmaExit = s.period.trend_hma_exit
+
+  // upper band line
+  if(s.upper > 0 && trendHma < bollinger.upper) {
+    console.log('Sell based on upper bollinger lose')
+    return true
+  }
+
+  // middle crossed middle
+  if(s.lookback[0].trend_hma_exit > bollinger.mid && trendHmaExit < bollinger.mid) {
+    console.log('Sell based on mid bollinger cross')
+    return true
+  }
+
+  // drop under lower line; take lose or wait for recovery
+  if(s.lower > 0) {
+    let loss = ((s.last_buy_price - trendHma) / s.hma_buy * 100)
+    let loss2 = ((s.last_buy_price - s.period.close) / s.hma_buy * 100)
+
+    if(((loss + loss2) / 2) > s.options.stop_lose) {
+      console.log((('Secure sell take lost of ' + n(loss).format('0.00')) + ' %').red)
+      return true
+    }
+  }
+
+  return false
 }
