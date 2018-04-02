@@ -106,4 +106,3 @@ module.exports = {
     return cols
   }
 }
-
