@@ -25,9 +25,14 @@ module.exports = {
     this.option('bollinger_size', 'period size', Number, 20)
     this.option('bollinger_time', 'times of standard deviation between the upper band and the moving averages', Number, 2)
 
+    this.option('bollinger_breakout_lookbacks', 'breakout trigger: lookbacks to calculate average bollinger size', Number, 30)
+    this.option('bollinger_breakout_lookback_steps', 'breakout trigger: step in lookup to visit, so visit all history random cherry-pick', Number, 3)
     this.option('bollinger_breakout_trend_ema', 'breakout trigger: ema line our band line cross from bottom', Number, 12)
     this.option('bollinger_breakout_dips', 'breakout trigger: dips in row after when allow breakout', Number, 10)
-    this.option('bollinger_breakout_size_violation', 'breakout trigger: bollinger band size violation in percent based on last periods to trigger breakout', Number, 80)
+    this.option('bollinger_breakout_size_violation_pct', 'breakout trigger: bollinger band size violation in percent based on last periods to trigger breakout', Number, 80)
+
+
+    this.option('bollinger_sell_touch_distance_pct', 'exit trigger: after crossing upper band distance lose to exit', Number, 0.5)
 
     this.option('bollinger_sell_trigger', 'Trigger sell indicator: "auto", "cross", "touch"', String, 'touch')
   },
@@ -78,12 +83,16 @@ module.exports = {
 
             s.upper = 0
             s.lower = 0
+
+            // last buy price based on hma price value
+            s.hma_buy = trendHma
           } else if(s.trend == 'buy' && shouldSell(s)) {
             s.trend = 'sell'
             s.signal = 'sell'
 
             s.upper = 0
             s.lower = 0
+            s.upper_distances = 0
           }
 
           if (s.trend == 'sell'
@@ -94,15 +103,22 @@ module.exports = {
             let bollingerBreakout = getBollingerBreakout(s.lookback)
 
             if (bollingerBreakout.bolling_band_size_percent) {
+              let averageBandSizeCompare = percent(bollingerBreakout.bolling_band_size_percent, getAverageBandSize(
+                s.lookback,
+                s.options.bollinger_breakout_lookbacks,
+                s.options.bollinger_breakout_lookback_steps
+              ))
 
-              let averageBandSize = percent(bollingerBreakout.bolling_band_size_percent, getAverageBandSize(s.lookback))
+              if(bollingerBreakout.since > 10) {
+                s.period.breakout_pct = averageBandSizeCompare
 
-              if(bollingerBreakout.since > 10 && averageBandSize > s.options.bollinger_breakout_size_violation) {
-                console.log('Breakout buy at: ' + n(averageBandSize).format('0.0') + ' %')
+                if(averageBandSizeCompare > s.options.bollinger_breakout_size_violation_pct) {
+                  console.log('Breakout buy at: ' + n(averageBandSizeCompare).format('0.0') + ' %')
 
-                s.trend = 'buy'
-                s.signal = 'buy'
-              }              
+                  s.trend = 'buy'
+                  s.signal = 'buy'
+                }
+              }
             }
           }
 
@@ -146,8 +162,21 @@ module.exports = {
       }
     }
     else {
-      cols.push('         ')
+      cols.push((z(8, '', ' ')))
+      cols.push((z(8, '', ' ')))
     }
+
+    if(s.period.breakout_pct) {
+      var color = 'grey'
+      if(s.period.breakout_pct > s.options.bollinger_breakout_size_violation_pct) {
+        color = 'green'
+      }
+
+      cols.push((z(8, n(s.period.breakout_pct).format('0.0'), ' ') + '%')[color])
+    } else {
+      cols.push((z(9, '', ' ')))
+    }
+
     return cols
   },
 }
@@ -159,9 +188,9 @@ function getBandSizeInPercent(bollinger) {
 /**
  * Get the average band size on history; to check if current band size is in violation
  */
-function getAverageBandSize(myLookback) {
-  let bandSizes = myLookback.slice(5, 200).filter(function (lookback, index) {
-    return typeof lookback.bollinger !== 'undefined' && index % 5 === 0
+function getAverageBandSize(myLookback, breakoutLookbacks, breakoutLookbacksSteps) {
+  let bandSizes = myLookback.slice(breakoutLookbacksSteps, breakoutLookbacks).filter(function (lookback, index) {
+    return typeof lookback.bollinger !== 'undefined' && index % breakoutLookbacksSteps === 0
   }).map(function (lookback) {
     return getBandSizeInPercent(extractLastBollingerResult(lookback.bollinger))
   })
@@ -238,9 +267,25 @@ function shouldSell(s) {
     break
   case 'touch':
     // connection to upper band lost
-    if(s.upper > 0 && trendHma < bollinger.upper) {
-      console.log('Sell based on upper bollinger lose')
-      return true
+    if((s.upper > 0 || s.upper_distances > 0)) {
+      let bollinger = extractLastBollingerResult(s.period.bollinger)
+
+      if(trendHma > bollinger.upper) {
+        return false
+      }
+
+      let diff = percent(bollinger.upper, s.period.trend_hma)
+
+      let distance = getAvarageUpperLineTouchs(s.lookback, s.options.bollinger_sell_touch_distance_pct)
+
+      if(diff > distance) {
+        console.log('Sell based on upper bollinger lose')
+        return true
+      }
+
+      s.upper_distances = s.upper_distances + 1
+
+      return false
     }
 
     break
@@ -269,4 +314,25 @@ function shouldSell(s) {
   }
 
   return false
+}
+
+function getAvarageUpperLineTouchs(lookback, distancePct) {
+  let percentages = []
+
+  for (let i = 0; i <= 30; i++) {
+    let bollinger = extractLastBollingerResult(lookback[i].bollinger)
+
+    let percentage = percent(bollinger.upper, lookback[i].trend_hma)
+    if(percentage < 0) {
+      percentage = 0
+    }
+
+    percentages.push(percentage)
+
+    if(percentage > distancePct) {
+      break
+    }
+  }
+
+  return percentages.reduce( ( p, c ) => p + c, 0 ) / percentages.length
 }
