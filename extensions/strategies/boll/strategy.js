@@ -283,7 +283,7 @@ function shouldSell(s) {
         return true
       }
 
-      s.upper_distances = s.upper_distances + 1
+      s.upper_distances = (s.upper_distances || 0) + 1
 
       return false
     }
