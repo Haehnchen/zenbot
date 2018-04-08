@@ -32,6 +32,7 @@ module.exports = {
     this.option('bollinger_breakout_size_violation_pct', 'breakout trigger: bollinger band size violation in percent based on last periods to trigger breakout', Number, 80)
 
 
+    this.option('bollinger_sell_trigger_bullish_band', 'Move sell trigger to x10 band size on big run detection', Number, 1)
     this.option('bollinger_sell_touch_distance_pct', 'exit trigger: after crossing upper band distance lose to exit', Number, 0.5)
 
     this.option('bollinger_sell_trigger', 'Trigger sell indicator: "auto", "cross", "touch"', String, 'touch')
@@ -43,6 +44,8 @@ module.exports = {
   onPeriod: function (s, cb) {
     // calculate Bollinger Bands
     bollinger(s, 'bollinger', s.options.bollinger_size)
+    bollinger(s, 'bollinger_bullish', s.options.bollinger_size * 10)
+
     ema(s, 'trend_ema_breakout', s.options.bollinger_breakout_trend_ema)
 
     if(s.last_signal == 'buy' && s.trend != 'buy') {
@@ -67,64 +70,72 @@ module.exports = {
     ]
 
     Promise.all(calcs).then(() => {
+      let trendHma = s.period.trend_hma
+
       if (s.period.bollinger) {
-        if (s.period.bollinger.upper && s.period.bollinger.lower) {
-          let upperBound = s.period.bollinger.upper[s.period.bollinger.upper.length-1]
-          let lowerBound = s.period.bollinger.lower[s.period.bollinger.lower.length-1]
 
-          let trendHma = s.period.trend_hma
+        let upperBound = s.period.bollinger.upper[s.period.bollinger.upper.length-1]
+        let lowerBound = s.period.bollinger.lower[s.period.bollinger.lower.length-1]
 
-          if(s.lookback[0].trend_hma < lowerBound && trendHma > lowerBound) {
-            // cross up lower band
-            if (s.trend != 'buy') {
-              s.trend = 'buy'
-              s.signal = 'buy'
-            }
-
-            s.upper = 0
-            s.lower = 0
-
-            // last buy price based on hma price value
-            s.hma_buy = trendHma
-          } else if(s.trend == 'buy' && shouldSell(s)) {
-            s.trend = 'sell'
-            s.signal = 'sell'
-
-            s.upper = 0
-            s.lower = 0
-            s.upper_distances = 0
+        if(s.lookback[0].trend_hma < lowerBound && trendHma > lowerBound) {
+          // cross up lower band
+          if (s.trend != 'buy') {
+            s.trend = 'buy'
+            s.signal = 'buy'
           }
 
-          if (s.trend == 'sell'
-            && s.lookback[0].trend_hma < s.lookback[0].trend_ema_breakout // break
-            && s.period.trend_hma > s.period.trend_ema_breakout
-          ) {
+          s.upper = 0
+          s.lower = 0
 
-            let bollingerBreakout = getBollingerBreakout(s.lookback)
+          // last buy price based on hma price value
+          s.hma_buy = trendHma
+        } else if(s.trend == 'buy' && shouldSell(s)) {
+          s.trend = 'sell'
+          s.signal = 'sell'
 
-            if (bollingerBreakout.bolling_band_size_percent) {
-              let averageBandSizeCompare = percent(bollingerBreakout.bolling_band_size_percent, getAverageBandSize(
-                s.lookback,
-                s.options.bollinger_breakout_lookbacks,
-                s.options.bollinger_breakout_lookback_steps
-              ))
+          s.upper = 0
+          s.lower = 0
+          s.upper_distances = 0
+          s.upper_bullish_distances = 0
+        }
 
-              if(bollingerBreakout.since > 10) {
-                s.period.breakout_pct = averageBandSizeCompare
+        if (s.trend == 'sell'
+          && s.lookback[0].trend_hma < s.lookback[0].trend_ema_breakout // break
+          && s.period.trend_hma > s.period.trend_ema_breakout
+        ) {
 
-                if(averageBandSizeCompare > s.options.bollinger_breakout_size_violation_pct) {
-                  console.log('Breakout buy at: ' + n(averageBandSizeCompare).format('0.0') + ' %')
+          let bollingerBreakout = getBollingerBreakout(s.lookback)
 
-                  s.trend = 'buy'
-                  s.signal = 'buy'
-                }
+          if (bollingerBreakout.bolling_band_size_percent) {
+            let averageBandSizeCompare = percent(bollingerBreakout.bolling_band_size_percent, getAverageBandSize(
+              s.lookback,
+              s.options.bollinger_breakout_lookbacks,
+              s.options.bollinger_breakout_lookback_steps
+            ))
+
+            if(bollingerBreakout.since > 10) {
+              s.period.breakout_pct = averageBandSizeCompare
+
+              if(averageBandSizeCompare > s.options.bollinger_breakout_size_violation_pct) {
+                console.log('Breakout buy at: ' + n(averageBandSizeCompare).format('0.0') + ' %')
+
+                s.trend = 'buy'
+                s.signal = 'buy'
               }
             }
           }
-
-          s.upper = trendHma > upperBound ? s.upper + 1 : 0
-          s.lower = trendHma < lowerBound ? s.lower + 1 : 0
         }
+
+        s.upper = trendHma > upperBound ? (s.upper || 0) + 1 : 0
+        s.lower = trendHma < lowerBound ? (s.lower || 0) + 1 : 0
+      }
+
+      if (s.period.bollinger_bullish) {
+        let upperBound = s.period.bollinger_bullish.upper[s.period.bollinger_bullish.upper.length-1]
+        let lowerBound = s.period.bollinger_bullish.lower[s.period.bollinger_bullish.lower.length-1]
+
+        s.upper_bullish = trendHma > upperBound ? (s.upper_bullish || 0) + 1 : 0
+        s.lower_bullish = trendHma < lowerBound ? (s.lower_bullish || 0) + 1 : 0
       }
 
       cb()
@@ -267,6 +278,31 @@ function shouldSell(s) {
     break
   case 'touch':
     // connection to upper band lost
+
+    // upper band
+    if(s.options.bollinger_sell_trigger_bullish_band === 1 && (s.upper_bullish > 0 || s.upper_bullish_distances > 0)) {
+      let bollinger = extractLastBollingerResult(s.period.bollinger_bullish)
+
+      if(trendHma > bollinger.upper) {
+        return false
+      }
+
+      let diff = percent(bollinger.upper, s.period.trend_hma)
+
+      let distance = getAvarageUpperLineTouchs(s.lookback, s.options.bollinger_sell_touch_distance_pct)
+
+      if(diff > distance) {
+        s.upper_bullish_distances = 0
+        console.log('Sell based on upper bollinger bullish lose')
+        return true
+      }
+
+      s.upper_bullish_distances = (s.upper_bullish_distances || 0) + 1
+
+      return false
+    }
+
+    // normal band
     if((s.upper > 0 || s.upper_distances > 0)) {
       let bollinger = extractLastBollingerResult(s.period.bollinger)
 
@@ -279,6 +315,7 @@ function shouldSell(s) {
       let distance = getAvarageUpperLineTouchs(s.lookback, s.options.bollinger_sell_touch_distance_pct)
 
       if(diff > distance) {
+        s.upper_distances = 0
         console.log('Sell based on upper bollinger lose')
         return true
       }
