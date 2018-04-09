@@ -48,11 +48,11 @@ module.exports = {
 
     ema(s, 'trend_ema_breakout', s.options.bollinger_breakout_trend_ema)
 
-    if(s.last_signal == 'buy' && s.trend != 'buy') {
+    if(s.last_signal === 'buy' && s.trend !== 'buy') {
       s.trend = 'buy'
     }
 
-    if(s.last_signal == 'sell' && s.trend != 'sell') {
+    if(s.last_signal === 'sell' && s.trend !== 'sell') {
       s.trend = 'sell'
     }
 
@@ -79,7 +79,7 @@ module.exports = {
 
         if(s.lookback[0].trend_hma < lowerBound && trendHma > lowerBound) {
           // cross up lower band
-          if (s.trend != 'buy') {
+          if (s.trend !== 'buy') {
             s.trend = 'buy'
             s.signal = 'buy'
           }
@@ -89,7 +89,7 @@ module.exports = {
 
           // last buy price based on hma price value
           s.hma_buy = trendHma
-        } else if(s.trend == 'buy' && shouldSell(s)) {
+        } else if(s.trend !== 'sell' && shouldSell(s)) {
           s.trend = 'sell'
           s.signal = 'sell'
 
@@ -99,7 +99,7 @@ module.exports = {
           s.upper_bullish_distances = 0
         }
 
-        if (s.trend == 'sell'
+        if (s.trend !== 'buy'
           && s.lookback[0].trend_hma < s.lookback[0].trend_ema_breakout // break
           && s.period.trend_hma > s.period.trend_ema_breakout
         ) {
@@ -341,6 +341,12 @@ function shouldSell(s) {
 
   // drop under lower line; take lose or wait for recovery
   if(s.lower > 0) {
+    // on init and restart force a sell signal on non price
+    if(typeof s.last_buy_price === 'undefined') {
+      console.log('Dropper under upper sell without price'.red)
+      return true
+    }
+
     let loss = ((s.last_buy_price - trendHma) / s.hma_buy * 100)
     let loss2 = ((s.last_buy_price - s.period.close) / s.hma_buy * 100)
 
