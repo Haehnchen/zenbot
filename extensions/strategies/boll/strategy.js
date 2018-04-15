@@ -216,7 +216,7 @@ module.exports = {
     }
 
     // stoch
-    if(s.period.indicators.stoch) {
+    if(s.period.indicators && s.period.indicators.stoch) {
       let pct = s.period.indicators.stoch.slowK - s.period.indicators.stoch.slowD
       // [s.period.indicators.stoch.slowK < 20 || s.period.indicators.stoch.slowK > 80 'bold']
       let v = n(pct).format('+00.0') + '% ' + n(s.period.indicators.stoch.slowK).format('00')
@@ -372,8 +372,8 @@ function shouldSell(s) {
   }
 
   if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    //console.log('!!!Dropper under upper sell price!!!'.red)
-    //return true
+    console.log('!!!Dropper under upper sell price!!!'.red)
+    return true
   }
 
   // drop under lower line; take lose or wait for recovery
