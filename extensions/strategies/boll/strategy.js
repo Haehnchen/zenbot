@@ -352,7 +352,6 @@ function shouldSell(s) {
       }
     }
 
-
     break
   case 'auto':
     console.log('not supported yet'.red)
@@ -367,9 +366,14 @@ function shouldSell(s) {
     return true
   }
 
-  if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    console.log('!!!Dropper under upper sell price!!!'.red)
-    return true
+  if(s.period.trend_hma_exit < s.period.trend_hma_bull && s.lookback[0].trend_hma_exit > s.lookback[0].trend_hma_bull) {
+    //console.log('Sell based on mid bollinger cross')
+    //return true
+  }
+
+  if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
+    //console.log('!!!Dropper under upper sell price!!!'.red)
+    //return true
   }
 
   // drop under lower line; take lose or wait for recovery
