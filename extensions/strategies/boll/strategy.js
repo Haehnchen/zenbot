@@ -337,19 +337,21 @@ function shouldSell(s) {
       }
     })
 
-    var distance = getAvarageUpperLineTouchs(crossElements, s.options.bollinger_sell_touch_distance_pct)
-    var diff = percent(bollinger.upper, s.period.trend_hma)
+    if(crossElements.length > 0) {
+      var distance = getAvarageUpperLineTouchs(s.lookback, s.options.bollinger_sell_touch_distance_pct)
+      var diff = percent(bollinger.upper, s.period.trend_hma)
 
-    if(diff > distance) {
-      if(s.period.indicators.stoch.pct > -0.5 || s.period.indicators.stoch.slowK > 75) {
-        console.log('[blocked] Sell based on upper bollinger lose')
-        s.upper_distances = 0
-        return false
+      if(diff > distance) {
+        if(s.period.indicators.stoch.pct > 0) {
+          //console.log('[blocked] Sell based on upper bollinger lose')
+          //return false
+        }
+
+        console.log('Sell based on upper bollinger lose')
+        return true
       }
-
-      console.log('Sell based on upper bollinger lose')
-      return true
     }
+
 
     break
   case 'auto':
@@ -416,8 +418,10 @@ function getUpperLookbacks(lookbacks)
 function getAvarageUpperLineTouchs(lookback, distancePct) {
   let percentages = []
 
-  for (var x in lookback) {
-    let percentage = percent(lookback[x].price_compare, lookback[x].price)
+  for (let i = 0; i <= 10; i++) {
+    let bollinger = extractLastBollingerResult(lookback[i].bollinger)
+
+    let percentage = percent(bollinger.upper, lookback[i].trend_hma)
     if(percentage < 0) {
       percentage = 0
     }
