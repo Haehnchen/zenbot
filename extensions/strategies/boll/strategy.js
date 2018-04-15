@@ -11,6 +11,7 @@ var z = require('zero-fill')
   , ti_hma = require('../../../lib/ti_hma')
   , ema = require('../../../lib/ema')
   , ti_stoch = require('../../../lib/ti_stoch')
+  , stddev = require('../../../lib/stddev')
 
 module.exports = {
   name: 'boll',
@@ -41,6 +42,14 @@ module.exports = {
   },
 
   onPeriod: function (s, cb) {
+    ema(s, 'trend_ema', 52)
+
+    if (s.period.trend_ema && s.lookback[0] && s.lookback[0].trend_ema) {
+      s.period.trend_ema_rate = (s.period.trend_ema - s.lookback[0].trend_ema) / s.lookback[0].trend_ema * 100
+    }
+
+    stddev(s, 'trend_ema_stddev', 52, 'trend_ema_rate')
+
     s.period.indicators = {}
 
     // calculate Bollinger Bands
@@ -169,6 +178,21 @@ module.exports = {
 
   onReport: function (s) {
     var cols = []
+
+    if (typeof s.period.trend_ema_stddev === 'number') {
+      let color = 'grey'
+
+      if (s.period.trend_ema_rate > s.period.trend_ema_stddev) {
+        color = 'green'
+      } else if (s.period.trend_ema_rate < s.period.trend_ema_stddev * -1) {
+        color = 'red'
+      }
+
+      cols.push(z(9, n(s.period.trend_ema_rate).format('+0.000')[color], ' ') + ' ')
+    } else {
+      cols.push(z(9, '', ' '))
+    }
+
     if (s.period.bollinger) {
       if (s.period.bollinger.upper && s.period.bollinger.lower) {
 
@@ -203,7 +227,7 @@ module.exports = {
 
     let breakoutPct = ''
     if(s.period.breakout_pct) {
-      var color = 'grey'
+      let color = 'grey'
       if(s.period.breakout_pct > s.options.bollinger_breakout_size_violation_pct) {
         color = 'green'
       }
@@ -372,8 +396,8 @@ function shouldSell(s) {
   }
 
   if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    console.log('!!!Dropper under upper sell price!!!'.red)
-    return true
+    //console.log('!!!Dropper under upper sell price!!!'.red)
+    //return true
   }
 
   // drop under lower line; take lose or wait for recovery
