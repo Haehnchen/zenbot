@@ -401,7 +401,7 @@ function getUpperLookbacks(lookbacks)
   let sinceIndex = -1
 
   let slice = lookbacks.slice(0, 10).filter(function(lookback) {
-    return typeof lookback.trend_hma !== 'undefined' && typeof lookback.indicators.bollinger.upper !== 'undefined'
+    return typeof lookback.trend_hma !== 'undefined'  && lookback.indicators.bollinger && typeof lookback.indicators.bollinger.upper !== 'undefined'
   })
 
   for (var x in slice) {
