@@ -379,8 +379,8 @@ function shouldSell(s) {
     }
 
     if(s.period.indicators.exit.signal < s.lookback[0].indicators.exit.signal && (s.period.trend_ema_rate < s.period.trend_ema_stddev * -1) && s.period.indicators.exit.fast < s.period.indicators.exit.slow && s.lookback[0].indicators.exit.fast > s.lookback[0].indicators.exit.slow) {
-      //console.log('exit cross')
-      //return true
+      console.log('exit cross')
+      return true
     }
 
     var crossElements = getUpperLookbacks(s.lookback, s.options.bollinger_sell_touch_distance_pct).map(function (lookback) {
