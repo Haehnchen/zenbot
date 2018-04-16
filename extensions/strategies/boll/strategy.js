@@ -33,7 +33,7 @@ module.exports = {
     this.option('bollinger_breakout_dips', 'breakout trigger: dips in row after when allow breakout', Number, 10)
     this.option('bollinger_breakout_size_violation_pct', 'breakout trigger: bollinger band size violation in percent based on last periods to trigger breakout', Number, 80)
 
-    this.option('bollinger_sell_touch_distance_pct', 'exit trigger: after crossing upper band distance lose to exit', Number, 0.5)
+    this.option('bollinger_sell_touch_distance_pct', 'exit trigger: after crossing upper band distance lose to exit', Number, 0.75)
 
     this.option('bollinger_sell_trigger', 'Trigger sell indicator: "auto", "cross", "touch"', String, 'touch')
   },
@@ -50,7 +50,9 @@ module.exports = {
 
     stddev(s, 'trend_ema_stddev', 52, 'trend_ema_rate')
 
-    s.period.indicators = {}
+    s.period.indicators = {
+      'exit': {}
+    }
 
     // calculate Bollinger Bands
     bollinger(s, 'bollinger', s.options.bollinger_size)
@@ -91,6 +93,21 @@ module.exports = {
       }).catch(function() {
 
       }),
+
+      // exit
+      ti_hma(s, s.options.min_periods, 9).then(function(signal) {
+        s.period.indicators.exit.signal = signal
+      }).catch(function() {
+      }),
+      ti_hma(s, s.options.min_periods, 21).then(function(signal) {
+        s.period.indicators.exit.fast = signal
+      }).catch(function() {
+      }),
+      ti_hma(s, s.options.min_periods, 54).then(function(signal) {
+        s.period.indicators.exit.slow = signal
+      }).catch(function() {
+      }),
+
       ti_stoch(s, s.options.min_periods, 42, 9, 9).then(function(signal) {
         if(!signal) {
           return
@@ -200,7 +217,15 @@ module.exports = {
         let lowerBound = s.period.bollinger.lower[s.period.bollinger.lower.length-1]
         let midBound = s.period.bollinger.mid[s.period.bollinger.mid.length-1]
 
-        let signal = z(8, n(s.period.trend_hma).format('+00.00'), ' ')
+        let text = n(s.period.trend_hma).format('+00.00')
+
+        if (s.period.trend_hma > upperBound) {
+          text += ' ' + n(percent(s.period.trend_hma, upperBound)).format('+0.00')
+        } else {
+          text += z(5, '', ' ')
+        }
+
+        let signal = z(15, text, ' ')
 
         if (s.period.trend_hma > lowerBound && s.period.trend_hma < midBound) {
           cols.push(signal.yellow)
@@ -215,7 +240,7 @@ module.exports = {
         let range = upperBound - lowerBound
 
         let upper = Math.abs(((s.period.trend_hma - upperBound) / range) * 100)
-        let lower = Math.abs(((s.period.trend_hma - lowerBound) / range) *100)
+        let lower = Math.abs(((s.period.trend_hma - lowerBound) / range) * 100)
 
         cols.push(z(8, n(upper).format('0.0'), ' ').cyan)
         cols.push(z(8, n(lower).format('0.0'), ' ').cyan)
@@ -353,7 +378,12 @@ function shouldSell(s) {
       return false
     }
 
-    var crossElements = getUpperLookbacks(s.lookback).map(function (lookback) {
+    if(s.period.indicators.exit.signal < s.lookback[0].indicators.exit.signal && (s.period.trend_ema_rate < s.period.trend_ema_stddev * -1) && s.period.indicators.exit.fast < s.period.indicators.exit.slow && s.lookback[0].indicators.exit.fast > s.lookback[0].indicators.exit.slow) {
+      //console.log('exit cross')
+      //return true
+    }
+
+    var crossElements = getUpperLookbacks(s.lookback, s.options.bollinger_sell_touch_distance_pct).map(function (lookback) {
       return {
         'price': lookback.trend_hma,
         'price_compare': lookback.indicators.bollinger.upper,
@@ -396,8 +426,8 @@ function shouldSell(s) {
   }
 
   if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    //console.log('!!!Dropper under upper sell price!!!'.red)
-    //return true
+    console.log('Exit based on crossed exit lines'.red)
+    return true
   }
 
   // drop under lower line; take lose or wait for recovery
@@ -420,7 +450,7 @@ function shouldSell(s) {
   return false
 }
 
-function getUpperLookbacks(lookbacks)
+function getUpperLookbacks(lookbacks, distance)
 {
   let sinceIndex = -1
 
@@ -431,7 +461,7 @@ function getUpperLookbacks(lookbacks)
   for (var x in slice) {
     let lookback = lookbacks[x]
 
-    if(lookback.trend_hma > lookback.indicators.bollinger.upper) {
+    if(lookback.trend_hma > lookback.indicators.bollinger.upper && percent(lookback.trend_hma, lookback.indicators.bollinger.upper) > distance) {
       sinceIndex = x
     }
   }
