@@ -350,7 +350,7 @@ function extractLastBollingerResult(bollinger) {
   return {
     'upper': bollinger.upper[bollinger.upper.length - 1],
     'lower': bollinger.lower[bollinger.lower.length - 1],
-    'mid': bollinger.lower[bollinger.lower.length - 1],
+    'mid': bollinger.mid[bollinger.mid.length - 1],
     'pct': (bollinger.upper[bollinger.upper.length - 1] - bollinger.lower[bollinger.lower.length - 1]) / bollinger.upper[bollinger.upper.length - 1] * 100,
   }
 }
@@ -376,11 +376,6 @@ function shouldSell(s) {
     // normal band
     if(trendHma > bollinger.upper) {
       return false
-    }
-
-    if(s.period.indicators.exit.signal < s.lookback[0].indicators.exit.signal && (s.period.trend_ema_rate < s.period.trend_ema_stddev * -1) && s.period.indicators.exit.fast < s.period.indicators.exit.slow && s.lookback[0].indicators.exit.fast > s.lookback[0].indicators.exit.slow) {
-      console.log('exit cross')
-      return true
     }
 
     var crossElements = getUpperLookbacks(s.lookback, s.options.bollinger_sell_touch_distance_pct).map(function (lookback) {
@@ -415,7 +410,7 @@ function shouldSell(s) {
   }
 
   // middle crossed middle
-  if(s.lookback[0].trend_hma_exit > bollinger.mid && trendHmaExit < bollinger.mid) {
+  if(s.period.indicators.stoch.pct < 0 && s.lookback[0].trend_hma_exit > bollinger.mid && trendHmaExit < bollinger.mid) {
     console.log('Sell based on mid bollinger cross')
     return true
   }
