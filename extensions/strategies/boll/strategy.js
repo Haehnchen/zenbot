@@ -83,6 +83,11 @@ module.exports = {
       }).catch(function() {
 
       }),
+      ti_hma(s, s.options.min_periods, 2).then(function(signal) {
+        s.period['trend_hma_fast'] = signal
+      }).catch(function() {
+
+      }),
       ti_hma(s, s.options.min_periods, 21).then(function(signal) {
         s.period['trend_hma_exit'] = signal
       }).catch(function() {
@@ -132,18 +137,7 @@ module.exports = {
         let lowerBound = s.period.bollinger.lower[s.period.bollinger.lower.length-1]
 
         if(s.lookback[0].trend_hma < lowerBound && trendHma > lowerBound) {
-          // cross up lower band
-          if (s.trend !== 'buy') {
-            s.trend = 'buy'
-            s.signal = 'buy'
-          }
-
-          s.upper = 0
-          s.lower = 0
-
-          // last buy price based on hma price value
-          s.hma_buy = trendHma
-          s.trigger = 'lower_cross'
+          triggerBuy(s, 'lower_cross')
         } else if(s.trend !== 'sell' && shouldSell(s)) {
           s.trend = 'sell'
           s.signal = 'sell'
@@ -169,17 +163,13 @@ module.exports = {
               s.period.breakout_pct = averageBandSizeCompare
 
               if(s.period.trend_hma > s.period.trend_ema_76 && s.period.trend_ema_26 > s.period.trend_ema_76) {
-                s.trend = 'buy'
-                s.signal = 'buy'
-                s.trigger = 'bear_dip'
+                triggerBuy(s, 'bear_dip')
               }
 
               if(averageBandSizeCompare > s.options.bollinger_breakout_size_violation_pct) {
                 console.log('Breakout buy at: ' + n(averageBandSizeCompare).format('0.0') + ' %')
 
-                s.trend = 'buy'
-                s.signal = 'buy'
-                s.trigger = 'violation_dip'
+                triggerBuy(s, 'violation_dip')
               }
             }
           }
@@ -197,11 +187,13 @@ module.exports = {
     var cols = []
 
     if (typeof s.period.trend_ema_stddev === 'number') {
+      let speed = getMovingSpeed(s.period)
+
       let color = 'grey'
 
-      if (s.period.trend_ema_rate > s.period.trend_ema_stddev) {
+      if (speed > 0) {
         color = 'green'
-      } else if (s.period.trend_ema_rate < s.period.trend_ema_stddev * -1) {
+      } else if (speed < 0) {
         color = 'red'
       }
 
@@ -221,8 +213,8 @@ module.exports = {
 
         if (s.period.trend_hma > upperBound) {
           text += ' ' + n(percent(s.period.trend_hma, upperBound)).format('+0.00')
-        } else {
-          text += z(5, '', ' ')
+        } else if (s.period.trend_hma < midBound && s.period.trend_hma > lowerBound) {
+          text += ' ' + n(percent(midBound, s.period.trend_hma)).format('+0.00')
         }
 
         let signal = z(15, text, ' ')
@@ -244,8 +236,11 @@ module.exports = {
 
         cols.push(z(8, n(upper).format('0.0'), ' ').cyan)
         cols.push(z(8, n(lower).format('0.0'), ' ').cyan)
+
+        cols.push(z(8, n(s.period.indicators.bollinger.pct).format('+0.0'), ' ').cyan)
       }
     } else {
+      cols.push((z(8, '', ' ')))
       cols.push((z(8, '', ' ')))
       cols.push((z(8, '', ' ')))
     }
@@ -356,9 +351,14 @@ function extractLastBollingerResult(bollinger) {
 }
 
 function shouldSell(s) {
-  let bollinger = extractLastBollingerResult(s.period.bollinger)
-
   let trendHma = s.period.trend_hma
+
+  if(s.buy_low_resistance && trendHma > s.buy_low_resistance.low  && trendHma < s.buy_low_resistance.high) {
+    //console.log('sell block for inside resistance move: ' + JSON.stringify(s.buy_low_resistance))
+    //return
+  }
+
+  let bollinger = extractLastBollingerResult(s.period.bollinger)
   let trendHmaExit = s.period.trend_hma_exit
 
   switch (s.options.bollinger_sell_trigger) {
@@ -410,19 +410,30 @@ function shouldSell(s) {
   }
 
   // middle crossed middle
-  if(s.period.indicators.stoch.pct < 0 && s.lookback[0].trend_hma_exit > bollinger.mid && trendHmaExit < bollinger.mid) {
-    console.log('Sell based on mid bollinger cross')
-    return true
+  if(trendHmaExit < bollinger.mid) {
+
+    let findlastCross2 = findlastCross(s)
+    if(findlastCross2 && getMovingSpeed(s.period) < 0) {
+
+      console.log('Sell based on mid bollinger cross')
+      //   console.log(findlastCross2)
+
+      return true
+    }
+
+    // console.log('[blocked] Sell based on mid bollinger cross')
+
+    //return true
   }
 
   if(s.period.trend_hma_exit < s.period.trend_hma_bull && s.lookback[0].trend_hma_exit > s.lookback[0].trend_hma_bull) {
     //console.log('Sell based on mid bollinger cross')
-    //return true
+    // return true
   }
 
   if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    console.log('Exit based on crossed exit lines'.red)
-    return true
+    //console.log('Exit based on crossed exit lines'.red)
+    //return true
   }
 
   // drop under lower line; take lose or wait for recovery
@@ -487,4 +498,78 @@ function getAvarageUpperLineTouchs(lookback, distancePct) {
   }
 
   return percentages.reduce( ( p, c ) => p + c, 0 ) / percentages.length
+}
+
+function triggerBuy(s, trigger) {
+  s.trigger = trigger
+
+  // cross up lower band
+  if (s.trend !== 'buy') {
+    s.trend = 'buy'
+    s.signal = 'buy'
+  }
+
+  s.upper = 0
+  s.lower = 0
+
+  // last buy price based on hma price value
+  s.hma_buy = s.period.trend_hma
+
+
+  let resistanceDrop = s.hma_buy
+  s.lookback.slice(0, 7).forEach(function (lookback) {
+    if(lookback.low < resistanceDrop) {
+      resistanceDrop = lookback.low
+    }
+  })
+
+  s.buy_low_resistance = {
+    'low': resistanceDrop * 0.995,
+    'high': s.hma_buy * 1.015,
+  }
+}
+
+function findlastCross(s) {
+  let found = null
+
+  let lastCross = null
+
+  let visit = s.lookback.slice(0, 5)
+
+  for (let i = 0; i < visit.length; i++) {
+    if(visit[i].trend_hma_exit > visit[i].indicators.bollinger.mid) {
+      lastCross = visit
+    }
+  }
+
+  // no cross in range
+  if(!lastCross) {
+    return found
+  }
+
+  s.lookback.slice(0, 5).forEach(function (lookback) {
+    //
+    if (
+      getMovingSpeed(lookback) < 0
+      && !(lookback.trend_hma > s.buy_low_resistance.low && lookback.trend_hma < s.buy_low_resistance.high) // inside resistance buy
+      && lookback.trend_hma_exit > s.period.trend_hma_exit
+      && lookback.trend_hma_fast < lookback.trend_hma
+      && lookback.trend_hma_exit < lookback.indicators.bollinger.mid
+      && lookback.indicators.stoch.pct < 0
+    ) {
+      found = lookback
+    }
+  })
+
+  return found
+}
+
+function getMovingSpeed(period) {
+  if (period.trend_ema_rate > period.trend_ema_stddev) {
+    return 1
+  } else if (period.trend_ema_rate < period.trend_ema_stddev * -1) {
+    return -1
+  }
+
+  return 0
 }
