@@ -551,7 +551,7 @@ function findlastCross(s) {
     //
     if (
       getMovingSpeed(lookback) < 0
-      && !(lookback.trend_hma > s.buy_low_resistance.low && lookback.trend_hma < s.buy_low_resistance.high) // inside resistance buy
+      && (s.buy_low_resistance && !(lookback.trend_hma > s.buy_low_resistance.low && lookback.trend_hma < s.buy_low_resistance.high)) // inside resistance buy
       && lookback.trend_hma_exit > s.period.trend_hma_exit
       && lookback.trend_hma_fast < lookback.trend_hma
       && lookback.trend_hma_exit < lookback.indicators.bollinger.mid
