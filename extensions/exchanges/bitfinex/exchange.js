@@ -143,6 +143,8 @@ module.exports = function bitfinex (conf) {
   }
 
   function updateWallet(wallets) {
+    if (typeof(wallets[0]) !== 'object') wallets = [wallets]
+
     wallets.forEach(function (wallet) {
       if (wallet[0] === conf.bitfinex.wallet) {
 
