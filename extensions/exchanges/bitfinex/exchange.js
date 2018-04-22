@@ -195,6 +195,8 @@ module.exports = function bitfinex (conf) {
   }
 
   function wsError (e) {
+    console.warn(e)
+
     ws_connecting = false
     ws_connected = false
 
@@ -268,10 +270,10 @@ module.exports = function bitfinex (conf) {
     /*
     [ 'sym',
     'tBTCUSD',
-    [ 103.11144665,
-      103.11144665,
-      103.11144665,
-      103.11144665,
+    [ 103.11144665, // all ?
+      103.11144665, // all ?
+      23.11144665, // with active orders
+      23.11144665, // with active position
       null,
       null,
       null,
@@ -487,10 +489,13 @@ module.exports = function bitfinex (conf) {
       var amount = action === 'buy' ? opts.size : opts.size * -1
       var price = opts.price
 
+      // only exchange need a prefix; no needed for margin
+      let walletName = conf.bitfinex.wallet.toUpperCase() === 'EXCHANGE' ? 'EXCHANGE ' : ''
+
       if (opts.order_type === 'maker' && typeof opts.type === 'undefined') {
-        opts.type = conf.bitfinex.wallet.toUpperCase() + ' LIMIT'
+        opts.type = walletName + 'LIMIT'
       } else if (opts.order_type === 'taker' && typeof opts.type === 'undefined') {
-        opts.type = conf.bitfinex.wallet.toUpperCase() + ' MARKET'
+        opts.type = walletName + 'MARKET'
       }
 
       if (typeof opts.post_only === 'undefined') {
