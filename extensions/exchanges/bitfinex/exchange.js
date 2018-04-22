@@ -134,7 +134,7 @@ module.exports = function bitfinex (conf) {
         if (so.debug) console.warn(('\nWarning: Order ' + cid + ' not found in cache for wsUpdateReqOrder (manual order?).').red)
         return
       }
-      
+
       if (so.debug) console.log(ws_orders['~' + cid])
 
       ws_orders['~' + cid].status = 'rejected'
@@ -294,7 +294,8 @@ module.exports = function bitfinex (conf) {
 
     // not nice but values are not splitted
     // "tBTCUSD" extract => "USD"
-    let currency = symbol[1].substring(4)
+    // "tDASHUSD" extract => "USD"
+    let currency = symbol[1].substring(symbol[1].length - 3)
 
     // which array index to use to get available balance? :)
     ws_balance[currency].available = symbol[2][1]
@@ -332,8 +333,7 @@ module.exports = function bitfinex (conf) {
         ws_client.send([0, 'calc', null, [
           ['wallet_exchange_' + opts.currency],
           ['wallet_exchange_' + opts.wallet + '_' + opts.asset]
-        ]
-        ])
+        ]])
       } catch (e) {
         if (so.debug) {
           console.warn(e)
