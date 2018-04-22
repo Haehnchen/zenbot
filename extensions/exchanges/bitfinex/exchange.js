@@ -240,6 +240,10 @@ module.exports = function bitfinex (conf) {
         .on('miu', marginSymbolWebsocket)
         .on('ps', assetPositionMargin)
 
+      // we need also more position updates here, but messages are completely undocumented
+      // https://bitfinex.readme.io/v1/reference#ws-auth-position-updates
+      // <pn|pu|pc> possible only "pu" for update
+
       setInterval(function() {
         wsConnect()
       }, ws_retry)
