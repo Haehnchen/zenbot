@@ -12,7 +12,7 @@ module.exports = function bitfinex (conf) {
   var ws_timeout = 60000
   var ws_retry = 10000
 
-  var pair, public_client, ws_client
+  var pair, public_client, ws_client, rest_client
 
   var ws_trades = []
   var ws_balance = []
@@ -25,6 +25,14 @@ module.exports = function bitfinex (conf) {
   function publicClient () {
     if (!public_client) public_client = new BFX(null,null, {version: 2, transform: true}).rest
     return public_client
+  }
+
+  function restClient () {
+    if (!rest_client) {
+      rest_client = new BFX(conf.bitfinex.key, conf.bitfinex.secret, {version: 1, transform: false}).rest
+    }
+
+    return rest_client
   }
 
   function wsUpdateTrades (pair, trades) {
@@ -285,6 +293,7 @@ module.exports = function bitfinex (conf) {
     positions.filter(function (position) {
       return position.length > 2
     }).forEach(function (position) {
+
       let asset = assetPositionMarginAssetExtract(position)
       if (!ws_balance[asset]) {
         ws_balance[asset] = {}
@@ -385,6 +394,26 @@ module.exports = function bitfinex (conf) {
       try {
         ws_walletCalcDone[opts.asset] = 'inProgress'
         ws_walletCalcDone[opts.currency] = 'inProgress'
+
+        restClient().active_positions(function(err, positions) {
+          if(err) {
+            console.warn(err)
+            return
+          }
+
+          // call rest api for margin balance
+          positions.forEach(function(position) {
+            if(position['status'] !== 'ACTIVE') {
+              return
+            }
+
+            var asset = position['symbol'].substring(0, position['symbol'].length - 3).toUpperCase()
+
+            ws_balance[asset].balance = position['amount']
+            ws_balance[asset].available = position['amount']
+            ws_balance[asset].wallet = 'margin'
+          })
+        })
 
         ws_client.send([0, 'calc', null, [
           ['margin_base'],
