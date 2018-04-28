@@ -21,6 +21,7 @@ module.exports = function bitfinex (conf) {
   var ws_hb = []
   var ws_walletCalcDone
   var heartbeat_interval
+  var currency
 
   function publicClient () {
     if (!public_client) public_client = new BFX(null,null, {version: 2, transform: true}).rest
@@ -365,27 +366,22 @@ module.exports = function bitfinex (conf) {
    ]
     */
 
-    if(symbol[0] !== 'sym') {
-      return
-    }
-
     // tBTCUSD
-    if(symbol[1].substring(0, 1) !== 't') {
+    if(symbol.length < 2 || symbol[0] !== 'sym' || symbol[1].substring(0, 1) !== 't') {
       return
     }
-
-    let pair = symbol[1].substring(1)
 
     // not nice but values are not splitted
     // "tBTCUSD" extract => "USD"
     // "tDASHUSD" extract => "USD"
-    let currency = symbol[1].substring(symbol[1].length - 3)
+    let myCurrency = symbol[1].substring(symbol[1].length - 3)
+    if(myCurrency.toUpperCase() === currency.toUpperCase()) {
+      // which array index to use to get available balance? :)
+      ws_balance[currency].available = symbol[2][0]
+      ws_balance[currency].balance = symbol[2][0]
 
-    // which array index to use to get available balance? :)
-    ws_balance[currency].available = symbol[2][0]
-    ws_balance[currency].balance = symbol[2][0]
-
-    ws_walletCalcDone[pair] = true
+      ws_walletCalcDone[pair] = true
+    }
   }
 
   function updateBalance(opts) {
@@ -508,6 +504,8 @@ module.exports = function bitfinex (conf) {
     },
 
     getBalance: function (opts, cb) {
+      currency = opts.currency
+
       if (!pair) {
         pair = joinProduct(opts.asset + '-' + opts.currency)
       }
