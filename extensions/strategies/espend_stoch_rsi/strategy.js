@@ -40,8 +40,8 @@ module.exports = {
         if(s.period.fastK >= s.period.fastD && s.period.fastK > 20 && s.lookback[0].fastK < 20) {
           // lower cross
 
-          //trend = 'buy'
-          //s.period.notice = 'lower cross enter'
+          trend = 'buy'
+          s.period.notice = 'lower cross enter'
         }
       } else if(s.trend !== 'sell') {
         // upper cross
