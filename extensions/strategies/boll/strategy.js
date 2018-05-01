@@ -537,7 +537,7 @@ function findlastCross(s) {
   let visit = s.lookback.slice(0, 5)
 
   for (let i = 0; i < visit.length; i++) {
-    if(visit[i].trend_hma_exit > visit[i].indicators.bollinger.mid) {
+    if(visit[i].indicators.bollinger && visit[i].trend_hma_exit > visit[i].indicators.bollinger.mid) {
       lastCross = visit
     }
   }
