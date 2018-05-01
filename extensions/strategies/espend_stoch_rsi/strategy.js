@@ -45,7 +45,7 @@ module.exports = {
         }
       } else if(s.trend !== 'sell') {
         // upper cross
-        if (s.period.fastK <= s.period.fastD && s.lookback[0].fastK > s.lookback[0].fastD && s.period.fastK > 80) {
+        if (s.period.fastK <= s.period.fastD && s.lookback[0].fastK > s.lookback[0].fastD && (s.period.fastK > 80 || s.lookback[0].fastK > 80)) {
           trend = 'sell'
           s.period.notice = 'upper exit'
         } else if(s.period.fastK < 20 && s.lookback[0].fastK > 20) {
