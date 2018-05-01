@@ -483,6 +483,10 @@ function getAvarageUpperLineTouchs(lookback, distancePct) {
   let percentages = []
 
   for (let i = 0; i <= 10; i++) {
+    if(!lookback[i].bollinger) {
+      continue
+    }
+
     let bollinger = extractLastBollingerResult(lookback[i].bollinger)
 
     let percentage = percent(bollinger.upper, lookback[i].trend_hma)
