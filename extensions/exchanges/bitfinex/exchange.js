@@ -127,26 +127,42 @@ module.exports = function bitfinex (conf) {
   }
 
   function wsUpdateReqOrder (error) {
-    if (error[6] === 'ERROR' && error[7].match(/^Invalid order: not enough .* balance for/)) {
-      var cid = error[4][2]
+    if (error[6] !== 'ERROR') {
+      return
+    }
+
+    // print all error in cases for debug
+    console.warn(('Order request failed: ' + error[7]).red)
+
+    if (error[7].match(/^Invalid order: not enough .* balance for/) || error[7].match(/permission invalid/)) {
+      let cid = error[4][2]
 
       if (!ws_orders['~' + cid]) {
-        if (so.debug) console.warn(('\nWarning: Order ' + cid + ' not found in cache for wsUpdateReqOrder (manual order?).').red)
+        if (so.debug) {
+          console.warn(('\nWarning: Order ' + cid + ' not found in cache for wsUpdateReqOrder (manual order?).').red)
+        }
+
         return
       }
 
       ws_orders['~' + cid].status = 'rejected'
       ws_orders['~' + cid].reject_reason = 'balance'
     }
-    if (error[6] === 'ERROR' && error[7] === 'Invalid price.') {
-      cid = error[4][2]
+
+    if (error[7] === 'Invalid price.') {
+      let cid = error[4][2]
 
       if (!ws_orders['~' + cid]) {
-        if (so.debug) console.warn(('\nWarning: Order ' + cid + ' not found in cache for wsUpdateReqOrder (manual order?).').red)
+        if (so.debug) {
+          console.warn(('\nWarning: Order ' + cid + ' not found in cache for wsUpdateReqOrder (manual order?).').red)
+        }
+
         return
       }
 
-      if (so.debug) console.log(ws_orders['~' + cid])
+      if (so.debug) {
+        console.log(ws_orders['~' + cid])
+      }
 
       ws_orders['~' + cid].status = 'rejected'
       ws_orders['~' + cid].reject_reason = 'price'
@@ -221,8 +237,7 @@ module.exports = function bitfinex (conf) {
       if (e.msg == 'apikey: invalid') errorMessage = errorMessage + '\nEither your API key is invalid or you tried reconnecting to quickly. Wait and/or check your API keys.'
       console.warn(errorMessage)
       ws_client.close()
-    }
-    else {
+    } else {
       ws_client.close()
     }
   }
@@ -442,7 +457,7 @@ module.exports = function bitfinex (conf) {
             return
           }
 
-          let assetPostion = positions.find(function(position) {
+          let assetPosition = positions.find(function(position) {
             if(position['status'].toUpperCase() !== 'ACTIVE') {
               return false
             }
@@ -450,16 +465,15 @@ module.exports = function bitfinex (conf) {
             return asset === position['symbol'].substring(0, position['symbol'].length - 3).toUpperCase()
           })
 
-
-          if (so.debug) {
-            console.log('Margin asset balance updated via reset: ' + JSON.stringify(assetPostion))
-          }
-
           // clear asset balance or update with amount
-          if(!assetPostion) {
+          if(!assetPosition) {
             saveBalance(asset, 0, 0)
           } else {
-            saveBalance(asset, assetPostion['amount'], assetPostion['amount'])
+            saveBalance(asset, assetPosition['amount'], assetPosition['amount'])
+
+            if (so.debug) {
+              console.log('Margin asset balance updated via rest: ' + JSON.stringify(assetPosition))
+            }
           }
         })
 
@@ -618,6 +632,8 @@ module.exports = function bitfinex (conf) {
     },
 
     trade: function (action, opts, cb) {
+      console.log('trade')
+
       if (!pair) { pair = joinProduct(opts.product_id) }
       var symbol = 't' + pair
 
