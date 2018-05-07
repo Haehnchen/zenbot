@@ -26,6 +26,16 @@ module.exports = {
         return
       }
 
+      // bot overwrite reset
+      if(s.last_signal === 'buy' && s.trend !== 'buy') {
+        s.trend = 'buy'
+      }
+
+      // bot overwrite reset
+      if(s.last_signal === 'sell' && s.trend !== 'sell') {
+        s.trend = 'sell'
+      }
+
       s.period['fastK'] = signal['fastK']
       s.period['fastD'] = signal['fastD']
 
