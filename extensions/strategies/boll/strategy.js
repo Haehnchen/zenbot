@@ -12,6 +12,7 @@ var z = require('zero-fill')
   , ema = require('../../../lib/ema')
   , ti_stoch = require('../../../lib/ti_stoch')
   , stddev = require('../../../lib/stddev')
+  , rsi = require('../../../lib/rsi')
 
 module.exports = {
   name: 'boll',
@@ -43,6 +44,19 @@ module.exports = {
 
   onPeriod: function (s, cb) {
     ema(s, 'trend_ema', 52)
+    rsi(s, 'rsi', s.options.rsi_periods)
+
+    // compute MACD
+    ema(s, 'ema_short', 12 * 2)
+    ema(s, 'ema_long', 26 * 2)
+
+    if (s.period.ema_short && s.period.ema_long) {
+      s.period.macd = (s.period.ema_short - s.period.ema_long)
+      ema(s, 'macd_signal', 9 * 2, 'macd')
+      if (s.period.macd_signal) {
+        s.period.macd_histogram = s.period.macd - s.period.macd_signal
+      }
+    }
 
     if (s.period.trend_ema && s.lookback[0] && s.lookback[0].trend_ema) {
       s.period.trend_ema_rate = (s.period.trend_ema - s.lookback[0].trend_ema) / s.lookback[0].trend_ema * 100
@@ -427,13 +441,13 @@ function shouldSell(s) {
   }
 
   if(s.period.trend_hma_exit < s.period.trend_hma_bull && s.lookback[0].trend_hma_exit > s.lookback[0].trend_hma_bull) {
-    //console.log('Sell based on mid bollinger cross')
-    // return true
+    console.log('Exit based on crossed exit line')
+    return true
   }
 
   if(s.period.close < s.lookback[0].close &&  s.period.trend_hma < s.period.indicators.bollinger.lower && s.lookback[0].trend_hma < s.lookback[0].indicators.bollinger.lower && s.lookback[1].trend_hma < s.lookback[1].indicators.bollinger.lower && s.period.indicators.stoch.pct < -1) {
-    //console.log('Exit based on crossed exit lines'.red)
-    //return true
+    console.log('Exit based on crossed exit lines'.red)
+    return true
   }
 
   // drop under lower line; take lose or wait for recovery
