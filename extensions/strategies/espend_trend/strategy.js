@@ -120,9 +120,9 @@ module.exports = {
   onReport: function (s) {
     let cols = []
 
-    let stoch_rsi = s.period.indicators.stoch_rsi
+    if (s.period.indicators && s.period.indicators.stoch_rsi) {
+      let stoch_rsi = s.period.indicators.stoch_rsi
 
-    if (stoch_rsi) {
       let colour = 'white'
 
       if (stoch_rsi.fastK < stoch_rsi.fastD) {
